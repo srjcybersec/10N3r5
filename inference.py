@@ -7,7 +7,9 @@ Runs a model against all 3 tasks and emits structured stdout logs.
 Environment variables:
   API_BASE_URL   LLM endpoint (default: https://router.huggingface.co/v1)
   MODEL_NAME     Model identifier (default: Qwen/Qwen2.5-72B-Instruct)
-  HF_TOKEN       API key
+  HF_TOKEN       API key (no default — set in Space secrets or shell)
+  LOCAL_IMAGE_NAME  Optional; only if using from_docker_image() workflows
+  INFERENCE_DEBUG   Set to 1 for [DEBUG] lines; omit for stdout limited to [START]/[STEP]/[END]
   TASK_NAME      One of: style_review, logic_bug_review, security_review, or 'all'
 """
 
@@ -18,14 +20,19 @@ import requests
 from typing import List, Optional
 from openai import OpenAI
 
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
+# Rubric: defaults only for API_BASE_URL and MODEL_NAME; HF_TOKEN must not use getenv(..., default).
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:7860")
 TASK_NAME = os.getenv("TASK_NAME", "all")
 BENCHMARK = "code_review_env"
 MAX_STEPS = 3
 SUCCESS_THRESHOLD = 0.6
+
+# Set INFERENCE_DEBUG=1 for extra stderr-style diagnostics; keep unset for strict stdout (START/STEP/END only).
+_INFERENCE_DEBUG = os.getenv("INFERENCE_DEBUG", "").lower() in ("1", "true", "yes")
 
 TASKS = ["style_review", "logic_bug_review", "security_review"]
 
@@ -167,7 +174,8 @@ def get_agent_action(client: OpenAI, obs: dict, step: int) -> dict:
             action = _parse_action_json(completion_2.choices[0].message.content or "")
         return action
     except Exception as e:
-        print(f"[DEBUG] Model error: {e}", flush=True)
+        if _INFERENCE_DEBUG:
+            print(f"[DEBUG] Model error: {e}", flush=True)
         return {
             "comments": [],
             "overall_verdict": "comment_only",
@@ -214,7 +222,8 @@ def run_task(client: OpenAI, task_id: str) -> float:
         success = score >= SUCCESS_THRESHOLD
 
     except Exception as e:
-        print(f"[DEBUG] Task error: {e}", flush=True)
+        if _INFERENCE_DEBUG:
+            print(f"[DEBUG] Task error: {e}", flush=True)
 
     finally:
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
@@ -223,7 +232,7 @@ def run_task(client: OpenAI, task_id: str) -> float:
 
 
 def main():
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN or "")
 
     tasks_to_run = TASKS if TASK_NAME == "all" else [TASK_NAME]
 
@@ -231,13 +240,15 @@ def main():
     for task_id in tasks_to_run:
         score = run_task(client, task_id)
         all_scores[task_id] = score
-        print(f"[DEBUG] {task_id} final score: {score:.3f}", flush=True)
+        if _INFERENCE_DEBUG:
+            print(f"[DEBUG] {task_id} final score: {score:.3f}", flush=True)
 
-    print(f"\n[DEBUG] === SUMMARY ===", flush=True)
-    for t, s in all_scores.items():
-        print(f"[DEBUG] {t}: {s:.3f}", flush=True)
-    avg = sum(all_scores.values()) / len(all_scores) if all_scores else 0.0
-    print(f"[DEBUG] Average: {avg:.3f}", flush=True)
+    if _INFERENCE_DEBUG:
+        print(f"\n[DEBUG] === SUMMARY ===", flush=True)
+        for t, s in all_scores.items():
+            print(f"[DEBUG] {t}: {s:.3f}", flush=True)
+        avg = sum(all_scores.values()) / len(all_scores) if all_scores else 0.0
+        print(f"[DEBUG] Average: {avg:.3f}", flush=True)
 
 
 if __name__ == "__main__":
