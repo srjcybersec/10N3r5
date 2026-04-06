@@ -8,6 +8,11 @@ app_port: 7860
 pinned: false
 ---
 
+# Team Name: 10N3r5
+
+# Team Members: Prakhar Mehta (TL), Shivansh Rohit Jindal & Shreyas Tekawade
+
+
 # Code Review RL Environment
 
 An **OpenEnv-style** reinforcement learning environment where agents learn to perform **automated code review** at three difficulty levels: style and formatting, logic bugs, and security vulnerabilities. The design targets **dense partial-credit rewards**, **multi-step refinement** (feedback between steps), and a simple **HTTP API** suitable for LLM or RL training loops.
@@ -110,5 +115,3 @@ Licensed under the **MIT License** (see repository root if a `LICENSE` file is a
 - `ui/` — Static dashboard.
 - `tests/` — Smoke tests for env and grader.
 - `inference.py` — Example loop calling the HTTP API and an OpenAI-compatible LLM.
-
-For Docker and Hugging Face Spaces, see `SETUP.md`. For end-to-end run instructions for beginners, see `HOW_TO_RUN.md`. For submission checklist, see `SUBMISSION_GUIDE.md`.
