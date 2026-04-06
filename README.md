@@ -1,3 +1,13 @@
+---
+title: Code Review RL Environment
+emoji: "🧠"
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Code Review RL Environment
 
 An **OpenEnv-style** reinforcement learning environment where agents learn to perform **automated code review** at three difficulty levels: style and formatting, logic bugs, and security vulnerabilities. The design targets **dense partial-credit rewards**, **multi-step refinement** (feedback between steps), and a simple **HTTP API** suitable for LLM or RL training loops.
