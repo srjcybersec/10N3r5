@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "code-review-env"
+version = "1.0.0"
+description = "OpenEnv code review reinforcement learning environment"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "OpenEnv Hackathon Participant" }
+]
+dependencies = [
+  "fastapi==0.111.0",
+  "uvicorn[standard]==0.29.0",
+  "pydantic==2.7.1",
+  "openai==1.30.1",
+  "requests==2.32.2",
+  "python-multipart==0.0.9",
+]
+
+[project.optional-dependencies]
+dev = []
+
+[tool.setuptools]
+packages = ["server", "server.tasks"]
+
+[tool.openenv]
+name = "code-review-env"
+entrypoint = "server.main:app"
