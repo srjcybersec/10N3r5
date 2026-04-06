@@ -1,0 +1,105 @@
+[
+  {
+    "id": "medium_001",
+    "language": "python",
+    "context": "Binary search implementation for a sorted list.",
+    "code_snippet": "def binary_search(arr, target):\n    left, right = 0, len(arr)\n    while left < right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid\n        else:\n            right = mid\n    return -1",
+    "ground_truth_issues": [
+      {
+        "line_number": 2,
+        "category": "logic",
+        "severity": "warning",
+        "message": "Right boundary should be 'len(arr) - 1', not 'len(arr)'. This causes an off-by-one that can raise IndexError on the last element.",
+        "suggestion": "left, right = 0, len(arr) - 1"
+      },
+      {
+        "line_number": 7,
+        "category": "logic",
+        "severity": "error",
+        "message": "Setting 'left = mid' when arr[mid] < target causes an infinite loop when left + 1 == right, because mid == left and left never advances.",
+        "suggestion": "left = mid + 1"
+      },
+      {
+        "line_number": 9,
+        "category": "logic",
+        "severity": "error",
+        "message": "Setting 'right = mid' when arr[mid] > target is also incorrect; it should be 'right = mid - 1' to make progress.",
+        "suggestion": "right = mid - 1"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "medium"
+  },
+  {
+    "id": "medium_002",
+    "language": "python",
+    "context": "API pagination: compute offset from page number and page size.",
+    "code_snippet": "def page_to_offset(page: int, page_size: int) -> int:\n    # Pages are 1-indexed from the API\n    return (page - 1) * page_size + 1\n\ndef fetch_users(page: int, page_size: int):\n    offset = page_to_offset(page, page_size)\n    return db.query('SELECT * FROM users LIMIT ? OFFSET ?', page_size, offset)",
+    "ground_truth_issues": [
+      {
+        "line_number": 3,
+        "category": "logic",
+        "severity": "error",
+        "message": "Off-by-one bug: offset should be (page - 1) * page_size without adding 1, otherwise the first row of page 1 is skipped.",
+        "suggestion": "return (page - 1) * page_size"
+      },
+      {
+        "line_number": 7,
+        "category": "logic",
+        "severity": "warning",
+        "message": "SQL LIMIT and OFFSET parameter order may be swapped relative to the query placeholders — verify against your DB driver API.",
+        "suggestion": "Pass arguments in the same order as placeholders (LIMIT then OFFSET)."
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "medium"
+  },
+  {
+    "id": "medium_003",
+    "language": "python",
+    "context": "Check whether two date ranges [a_start, a_end) and [b_start, b_end) overlap.",
+    "code_snippet": "from datetime import date\n\ndef ranges_overlap(a_start: date, a_end: date, b_start: date, b_end: date) -> bool:\n    # Half-open intervals: [start, end)\n    return a_start < b_end and b_start <= a_end",
+    "ground_truth_issues": [
+      {
+        "line_number": 5,
+        "category": "logic",
+        "severity": "error",
+        "message": "Wrong boundary on b_start: for half-open intervals overlap requires b_start < a_end, not b_start <= a_end (adjacent ranges should not overlap).",
+        "suggestion": "return a_start < b_end and b_start < a_end"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "medium"
+  },
+  {
+    "id": "medium_004",
+    "language": "python",
+    "context": "Memoized Fibonacci for performance.",
+    "code_snippet": "def fib(n, memo=None):\n    if memo is None:\n        memo = {}\n    if n <= 1:\n        return n\n    if n in memo:\n        return memo[n]\n    memo[n - 1] = fib(n - 1, memo)\n    memo[n] = memo[n - 1] + fib(n - 2, memo)\n    return memo[n]",
+    "ground_truth_issues": [
+      {
+        "line_number": 8,
+        "category": "logic",
+        "severity": "error",
+        "message": "Incorrect memoization: storing memo[n-1] before computing fib(n-2) breaks the recurrence; memo should store fib(n) only after both subproblems.",
+        "suggestion": "memo[n] = fib(n - 1, memo) + fib(n - 2, memo)"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "medium"
+  },
+  {
+    "id": "medium_005",
+    "language": "python",
+    "context": "Merge two sorted arrays into one sorted array (ascending).",
+    "code_snippet": "def merge_sorted(a: list[int], b: list[int]) -> list[int]:\n    i, j = 0, 0\n    out: list[int] = []\n    while i < len(a) and j < len(b):\n        if a[i] <= b[j]:\n            out.append(a[i])\n            i += 1\n        else:\n            out.append(b[j])\n            j += 1\n    out.extend(a[i:])\n    out.extend(b[j:])\n    return out",
+    "ground_truth_issues": [],
+    "correct_verdict": "approve",
+    "has_critical_issues": false,
+    "difficulty": "medium"
+  }
+]

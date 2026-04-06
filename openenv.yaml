@@ -1,0 +1,70 @@
+name: code-review-env
+version: "1.0.0"
+description: >
+  A reinforcement learning environment where AI agents learn to review code
+  like a senior software engineer — catching bugs, identifying security
+  vulnerabilities, and enforcing style standards. Features dense reward
+  shaping, multi-step refinement, and three difficulty tiers.
+author: "OpenEnv Hackathon Participant"
+tags:
+  - code-review
+  - software-engineering
+  - security
+  - openenv
+  - llm-evaluation
+
+tasks:
+  - id: style_review
+    name: "Style & Formatting Review"
+    difficulty: easy
+    description: "Identify PEP8/language-convention violations in code snippets."
+    max_steps: 3
+    reward_range: [0.0, 1.0]
+
+  - id: logic_bug_review
+    name: "Logic Bug Detection"
+    difficulty: medium
+    description: "Detect off-by-one errors, boundary conditions, and incorrect algorithm logic."
+    max_steps: 3
+    reward_range: [0.0, 1.0]
+
+  - id: security_review
+    name: "Security Vulnerability Detection"
+    difficulty: hard
+    description: "Identify SQL injection, path traversal, hardcoded secrets, and other CWE-listed vulnerabilities."
+    max_steps: 3
+    reward_range: [0.0, 1.0]
+
+api:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  health: GET /health
+
+observation_space:
+  type: object
+  fields:
+    - code_snippet: string
+    - language: string
+    - context: string
+    - step: integer
+    - max_steps: integer
+    - feedback: string (optional)
+
+action_space:
+  type: object
+  fields:
+    - comments: array of ReviewComment
+    - overall_verdict: enum [approve, request_changes, comment_only]
+    - summary: string
+    - confidence: float [0.0, 1.0]
+
+reward:
+  type: float
+  range: [0.0, 1.0]
+  shape: dense
+  components:
+    - issue_detection_score
+    - false_positive_penalty
+    - severity_accuracy
+    - verdict_accuracy

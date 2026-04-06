@@ -1,0 +1,161 @@
+[
+  {
+    "id": "easy_001",
+    "language": "python",
+    "context": "A utility function that formats user names for display.",
+    "code_snippet": "def formatUserName(first,last,middle=None):\n    if middle != None:\n        return first + ' ' + middle + ' ' + last\n    else:\n        return first+' '+last\n\nresult = formatUserName('John','Doe','Paul')\nprint(result)",
+    "ground_truth_issues": [
+      {
+        "line_number": 1,
+        "category": "style",
+        "severity": "warning",
+        "message": "Function name 'formatUserName' should follow snake_case convention: 'format_user_name'",
+        "suggestion": "def format_user_name(first, last, middle=None):"
+      },
+      {
+        "line_number": 1,
+        "category": "style",
+        "severity": "info",
+        "message": "Missing spaces after commas in function signature",
+        "suggestion": "def format_user_name(first, last, middle=None):"
+      },
+      {
+        "line_number": 2,
+        "category": "style",
+        "severity": "warning",
+        "message": "Use 'is not None' instead of '!= None'",
+        "suggestion": "if middle is not None:"
+      },
+      {
+        "line_number": 3,
+        "category": "style",
+        "severity": "info",
+        "message": "Use an f-string for cleaner string formatting",
+        "suggestion": "return f'{first} {middle} {last}'"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "easy"
+  },
+  {
+    "id": "easy_002",
+    "language": "javascript",
+    "context": "A function to calculate the total price of items in a cart.",
+    "code_snippet": "function calculateTotal(items){\nvar total = 0\nfor(var i=0;i<items.length;i++){\ntotal = total + items[i].price\n}\nreturn total\n}",
+    "ground_truth_issues": [
+      {
+        "line_number": 1,
+        "category": "style",
+        "severity": "info",
+        "message": "Missing space before opening brace",
+        "suggestion": "function calculateTotal(items) {"
+      },
+      {
+        "line_number": 2,
+        "category": "style",
+        "severity": "warning",
+        "message": "Use 'const' or 'let' instead of 'var'",
+        "suggestion": "let total = 0;"
+      },
+      {
+        "line_number": 3,
+        "category": "style",
+        "severity": "warning",
+        "message": "Missing semicolons and spaces. Prefer 'for...of' or 'reduce' for array iteration",
+        "suggestion": "return items.reduce((sum, item) => sum + item.price, 0);"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "easy"
+  },
+  {
+    "id": "easy_003",
+    "language": "python",
+    "context": "A well-written utility — the agent should approve it.",
+    "code_snippet": "def calculate_discount(price: float, discount_pct: float) -> float:\n    \"\"\"Return the discounted price.\n    \n    Args:\n        price: Original price in dollars.\n        discount_pct: Discount percentage (0-100).\n    \n    Returns:\n        Discounted price, floored at 0.\n    \"\"\"\n    if not 0 <= discount_pct <= 100:\n        raise ValueError(f\"discount_pct must be between 0 and 100, got {discount_pct}\")\n    return max(0.0, price * (1 - discount_pct / 100))",
+    "ground_truth_issues": [],
+    "correct_verdict": "approve",
+    "has_critical_issues": false,
+    "difficulty": "easy"
+  },
+  {
+    "id": "easy_004",
+    "language": "python",
+    "context": "A logging helper.",
+    "code_snippet": "import datetime\nimport sys\n\ndef log(msg, level='INFO'):\n    t = datetime.datetime.now()\n    print('[' + str(t) + '] ' + level + ': ' + msg, file = sys.stderr)\n    \ndef log_error(msg):\n    log(msg, level = 'ERROR')\n    \ndef log_warn(msg):\n    log(msg,'WARN')",
+    "ground_truth_issues": [
+      {
+        "line_number": 6,
+        "category": "style",
+        "severity": "info",
+        "message": "Use f-string instead of string concatenation for readability",
+        "suggestion": "print(f'[{t}] {level}: {msg}', file=sys.stderr)"
+      },
+      {
+        "line_number": 6,
+        "category": "style",
+        "severity": "info",
+        "message": "Spaces around '=' in keyword argument are non-standard (PEP 8)",
+        "suggestion": "file=sys.stderr"
+      },
+      {
+        "line_number": 9,
+        "category": "style",
+        "severity": "info",
+        "message": "Inconsistent keyword argument style: 'level = ' vs positional",
+        "suggestion": "log(msg, level='ERROR')"
+      }
+    ],
+    "correct_verdict": "comment_only",
+    "has_critical_issues": false,
+    "difficulty": "easy"
+  },
+  {
+    "id": "easy_005",
+    "language": "python",
+    "context": "A class for managing user sessions.",
+    "code_snippet": "class userSession:\n    def __init__(self,userid,token,expiry):\n        self.userid=userid\n        self.Token=token\n        self.Expiry=expiry\n    def is_valid(self):\n        import datetime\n        return datetime.datetime.now() < self.Expiry",
+    "ground_truth_issues": [
+      {
+        "line_number": 1,
+        "category": "style",
+        "severity": "warning",
+        "message": "Class name should be PascalCase: 'UserSession'",
+        "suggestion": "class UserSession:"
+      },
+      {
+        "line_number": 3,
+        "category": "style",
+        "severity": "info",
+        "message": "Attribute names should be snake_case: 'user_id'",
+        "suggestion": "self.user_id = userid"
+      },
+      {
+        "line_number": 4,
+        "category": "style",
+        "severity": "warning",
+        "message": "Attribute 'Token' should be lowercase snake_case: 'token'",
+        "suggestion": "self.token = token"
+      },
+      {
+        "line_number": 5,
+        "category": "style",
+        "severity": "warning",
+        "message": "Attribute 'Expiry' should be lowercase snake_case: 'expiry'",
+        "suggestion": "self.expiry = expiry"
+      },
+      {
+        "line_number": 7,
+        "category": "style",
+        "severity": "warning",
+        "message": "Imports should be at the top of the file, not inside methods",
+        "suggestion": "Move 'import datetime' to the top of the module"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "easy"
+  }
+]

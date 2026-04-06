@@ -1,0 +1,127 @@
+[
+  {
+    "id": "hard_001",
+    "language": "python",
+    "context": "Load a user profile by id from SQLite.",
+    "code_snippet": "import sqlite3\n\ndef get_user(db_path: str, user_id: str):\n    conn = sqlite3.connect(db_path)\n    q = \"SELECT * FROM users WHERE id = '\" + user_id + \"'\"\n    return conn.execute(q).fetchone()",
+    "ground_truth_issues": [
+      {
+        "line_number": 5,
+        "category": "security",
+        "severity": "critical",
+        "message": "SQL injection: concatenating user_id into the query allows arbitrary SQL; use parameterized queries.",
+        "suggestion": "conn.execute(\"SELECT * FROM users WHERE id = ?\", (user_id,))"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": true,
+    "difficulty": "hard"
+  },
+  {
+    "id": "hard_002",
+    "language": "python",
+    "context": "Development configuration for an internal tool.",
+    "code_snippet": "# config.py\nAPI_KEY = \"sk-live-7f3a9c2b1d8e4f6a0c5b9d2e7f1a3c8\"\nDB_PASSWORD = \"admin123\"\nDEBUG = True",
+    "ground_truth_issues": [
+      {
+        "line_number": 2,
+        "category": "security",
+        "severity": "critical",
+        "message": "Hardcoded API key / secret in source code; rotate credentials and load from environment or secrets manager.",
+        "suggestion": "API_KEY = os.environ['API_KEY']"
+      },
+      {
+        "line_number": 3,
+        "category": "security",
+        "severity": "critical",
+        "message": "Hardcoded database password in repository; never commit real credentials.",
+        "suggestion": "Load DB_PASSWORD from a secure vault or environment variable."
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": true,
+    "difficulty": "hard"
+  },
+  {
+    "id": "hard_003",
+    "language": "python",
+    "context": "Serve a file from a user-supplied name under a documents directory.",
+    "code_snippet": "import os\n\nDOCS_ROOT = \"/var/app/documents\"\n\ndef read_document(filename: str) -> bytes:\n    path = os.path.join(DOCS_ROOT, filename)\n    with open(path, \"rb\") as f:\n        return f.read()",
+    "ground_truth_issues": [
+      {
+        "line_number": 7,
+        "category": "security",
+        "severity": "critical",
+        "message": "Path traversal: filename like '../../../etc/passwd' escapes DOCS_ROOT; validate with realpath prefix check or pathlib.resolve().",
+        "suggestion": "resolved = pathlib.Path(DOCS_ROOT, filename).resolve(); assert str(resolved).startswith(str(pathlib.Path(DOCS_ROOT).resolve()))"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": true,
+    "difficulty": "hard"
+  },
+  {
+    "id": "hard_004",
+    "language": "python",
+    "context": "Restore user preferences from a blob posted by the client.",
+    "code_snippet": "import pickle\nfrom flask import request\n\ndef load_prefs():\n    blob = request.get_data()\n    return pickle.loads(blob)",
+    "ground_truth_issues": [
+      {
+        "line_number": 6,
+        "category": "security",
+        "severity": "critical",
+        "message": "Insecure deserialization: pickle.loads on untrusted input enables arbitrary code execution (CWE-502).",
+        "suggestion": "Use JSON or a safe schema-validated format instead of pickle."
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": true,
+    "difficulty": "hard"
+  },
+  {
+    "id": "hard_005",
+    "language": "python",
+    "context": "Fetch metadata from a URL provided in the request body.",
+    "code_snippet": "import requests\nfrom flask import request, jsonify\n\ndef fetch_metadata():\n    url = request.json.get(\"url\")\n    r = requests.get(url, timeout=5)\n    return jsonify({\"status\": r.status_code, \"len\": len(r.content)})",
+    "ground_truth_issues": [
+      {
+        "line_number": 6,
+        "category": "security",
+        "severity": "critical",
+        "message": "SSRF risk: user-controlled URL without allowlist can reach internal services and cloud metadata endpoints.",
+        "suggestion": "Validate URL scheme/host against an allowlist; block private IP ranges."
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": true,
+    "difficulty": "hard"
+  },
+  {
+    "id": "hard_006",
+    "language": "python",
+    "context": "Constant-time-ish token check for a simple auth helper (actually vulnerable).",
+    "code_snippet": "def verify_token(provided: str, expected: str) -> bool:\n    return provided == expected",
+    "ground_truth_issues": [
+      {
+        "line_number": 2,
+        "category": "security",
+        "severity": "error",
+        "message": "Timing attack: string comparison short-circuits on first mismatch; use hmac.compare_digest for secrets.",
+        "suggestion": "return hmac.compare_digest(provided.encode(), expected.encode())"
+      }
+    ],
+    "correct_verdict": "request_changes",
+    "has_critical_issues": false,
+    "difficulty": "hard"
+  },
+  {
+    "id": "hard_007",
+    "language": "python",
+    "context": "Parameterized query and safe path join for downloads.",
+    "code_snippet": "import os\nfrom pathlib import Path\nimport sqlite3\n\nBASE = Path(\"/var/app/safe_root\").resolve()\n\ndef get_asset(name: str) -> bytes:\n    target = (BASE / name).resolve()\n    if not str(target).startswith(str(BASE)):\n        raise ValueError(\"invalid path\")\n    return target.read_bytes()\n\ndef get_row(conn: sqlite3.Connection, user_id: str):\n    return conn.execute(\"SELECT * FROM users WHERE id = ?\", (user_id,)).fetchone()",
+    "ground_truth_issues": [],
+    "correct_verdict": "approve",
+    "has_critical_issues": false,
+    "difficulty": "hard"
+  }
+]
