@@ -88,6 +88,7 @@
   <script src="/ui/app.js"></script>
   <script>
     const rewardHistory = [];
+    let lastRewardsKey = "";
     let statePollMs = 2500;
     let stateTimer = null;
     let idleRetryCount = 0;
@@ -178,18 +179,57 @@
         idleRetryCount = 0;
         statePollMs = 2500;
         const state = await r.json();
-        byId("i-state").textContent = state.done ? "done" : "running";
-        byId("i-task").textContent = state.task_id || "-";
-        byId("i-step").textContent = String(state.current_step ?? "-");
-        byId("i-cum").textContent = state.cumulative_reward?.toFixed(3) ?? "-";
-        if (Number.isFinite(state.cumulative_reward)) {
-          rewardHistory.push(state.cumulative_reward);
-          if (rewardHistory.length > 28) rewardHistory.shift();
+        // Strict backend mapping: if fields are missing, surface as invalid instead of silent fallback.
+        const hasRequiredState = (
+          Object.prototype.hasOwnProperty.call(state, "task_id") &&
+          Object.prototype.hasOwnProperty.call(state, "step") &&
+          Object.prototype.hasOwnProperty.call(state, "done") &&
+          Object.prototype.hasOwnProperty.call(state, "cumulative_reward") &&
+          Object.prototype.hasOwnProperty.call(state, "episode_rewards")
+        );
+        if (!hasRequiredState) {
+          byId("i-state").textContent = "invalid_state";
+          byId("i-task").textContent = "-";
+          byId("i-step").textContent = "-";
+          byId("i-cum").textContent = "-";
+          byId("s-done").textContent = "-";
+          byId("s-rewards").textContent = "-";
+          byId("s-step").textContent = "-";
+          byId("s-refresh").textContent = nowStamp();
+          writeLog("State payload missing expected backend keys.");
+          statePollMs = 8000;
+          scheduleStatePoll();
+          return;
+        }
+
+        const stepVal = state.step;
+        const taskVal = state.task_id;
+        const doneVal = state.done === true;
+        const cumulativeVal = Number.isFinite(state.cumulative_reward) ? state.cumulative_reward : null;
+        const rewardsVal = Array.isArray(state.episode_rewards) ? state.episode_rewards : [];
+
+        byId("i-state").textContent = doneVal ? "done" : "running";
+        byId("i-task").textContent = taskVal;
+        byId("i-step").textContent = stepVal !== undefined && stepVal !== null ? String(stepVal) : "-";
+        byId("i-cum").textContent = cumulativeVal !== null ? cumulativeVal.toFixed(3) : "-";
+
+        if (cumulativeVal !== null) {
+          animateNumber(byId("i-cum"), cumulativeVal, 420, 3);
+        }
+
+        // Plot per-step rewards from backend state so the trend reflects episode behavior,
+        // not repeated polling snapshots of the same cumulative value.
+        const rewardsKey = rewardsVal.map((v) => Number(v).toFixed(4)).join("|");
+        if (rewardsKey !== lastRewardsKey) {
+          rewardHistory.length = 0;
+          rewardsVal.forEach((v) => rewardHistory.push(Number(v)));
+          lastRewardsKey = rewardsKey;
           drawSpark();
         }
-        byId("s-done").textContent = String(state.done);
-        byId("s-rewards").textContent = (state.episode_rewards || []).map((v) => v.toFixed(2)).join(", ") || "-";
-        byId("s-step").textContent = String(state.current_step ?? "-");
+
+        byId("s-done").textContent = String(doneVal);
+        byId("s-rewards").textContent = rewardsVal.length ? rewardsVal.map((v) => Number(v).toFixed(2)).join(", ") : "-";
+        byId("s-step").textContent = stepVal !== undefined && stepVal !== null ? String(stepVal) : "-";
         byId("s-refresh").textContent = nowStamp();
         scheduleStatePoll();
       } catch (e) {

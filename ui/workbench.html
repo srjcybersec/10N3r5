@@ -39,9 +39,14 @@
             </select>
           </div>
           <button class="btn primary" id="reset-btn">Reset Episode</button>
-          <button class="btn" id="step-btn" disabled>Step (Auto)</button>
-          <button class="btn" id="demo-btn" disabled>Auto Demo x3</button>
+          <button class="btn" id="step-btn" disabled>Submit Action</button>
         </div>
+      </article>
+
+      <article class="card full">
+        <h3>Manual Action Editor (JSON)</h3>
+        <p style="margin-bottom:8px;color:var(--muted);font-size:12px;">Edit this payload and click <strong>Submit Action</strong>. The backend score reflects exactly this action.</p>
+        <textarea id="action-json" style="width:100%;min-height:220px;border-radius:12px;border:1px solid rgba(148,163,184,0.24);background:rgba(7,12,24,0.94);color:#dbeafe;padding:12px;font-family:var(--mono);font-size:12px;line-height:1.5;"></textarea>
       </article>
 
       <article class="card wide">
@@ -63,7 +68,7 @@
       </article>
 
       <article class="card wide">
-        <h3>Last Agent Action <span id="step-counter" class="tag">step 0 / 3</span></h3>
+        <h3>Submitted Action (Auto Mode) <span id="step-counter" class="tag">step 0 / 3</span></h3>
         <div id="action-display" class="empty">No action taken yet.</div>
       </article>
 
@@ -157,21 +162,29 @@
       `).join("");
     }
 
-    function buildDemoAction() {
+    function buildTemplateAction(obs) {
+      const taskId = obs?.task_id || "style_review";
+      const suggestedCategory = taskId === "security_review" ? "security" : taskId === "logic_bug_review" ? "logic" : "style";
       return {
         comments: [
           {
             line_number: 1,
-            category: "style",
+            category: suggestedCategory,
             severity: "warning",
-            message: "Naming style drift detected; align with the convention used across the module.",
-            suggestion: "Use snake_case for function names and avoid ambiguous abbreviations."
+            message: "Describe the concrete issue found in this snippet.",
+            suggestion: "Describe a specific fix."
           }
         ],
         overall_verdict: "request_changes",
-        summary: "Code quality is close, but style consistency needs one pass.",
-        confidence: 0.79
+        summary: "Short summary of your review.",
+        confidence: 0.75
       };
+    }
+
+    function setActionEditorTemplate(obs) {
+      const el = byId("action-json");
+      if (!el) return;
+      el.value = JSON.stringify(buildTemplateAction(obs), null, 2);
     }
 
     function renderAction(action) {
@@ -187,7 +200,7 @@
           <div>${c.message || ""}</div>
           ${c.suggestion ? `<div style="margin-top:7px;color:var(--muted);font-size:12px;">Suggestion: ${c.suggestion}</div>` : ""}
         </div>
-      `).join("") + `<div class="comment info"><div>${action.summary || "No summary"}</div></div>`;
+      `).join("") + `<div class="comment info"><div>${action.summary || "No summary"}</div><div style="margin-top:6px;color:var(--muted);font-size:11px;">Submitted from manual JSON editor.</div></div>`;
     }
 
     async function doReset() {
@@ -205,8 +218,8 @@
         renderObservation(currentObs);
         clearReward();
         byId("step-btn").disabled = false;
-        byId("demo-btn").disabled = false;
-        byId("action-display").innerHTML = '<div class="empty">Episode initialized. Press Step (Auto).</div>';
+        setActionEditorTemplate(currentObs);
+        byId("action-display").innerHTML = '<div class="empty">Episode initialized. Edit payload and press Submit Action.</div>';
         timeline.push({ label: "Episode reset", ts: nowStamp(), meta: `Task=${taskId}` });
         renderTimeline();
         log(`Reset OK language=${currentObs?.language || "unknown"}`);
@@ -221,8 +234,14 @@
         log("Episode not active. Reset first.");
         return;
       }
-      const action = buildDemoAction();
-      log(`Stepping verdict=${action.overall_verdict} comments=${action.comments.length}`);
+      let action;
+      try {
+        action = JSON.parse(byId("action-json").value);
+      } catch (e) {
+        log(`Invalid JSON in action editor: ${e}`);
+        return;
+      }
+      log(`Submitting action verdict=${action.overall_verdict ?? "?"} comments=${(action.comments || []).length}`);
       try {
         const resp = await fetch("/step", {
           method: "POST",
@@ -230,6 +249,10 @@
           body: JSON.stringify({ action })
         });
         const data = await resp.json();
+        if (!resp.ok) {
+          log(`Step rejected: ${data.detail || JSON.stringify(data)}`);
+          return;
+        }
         currentObs = data.observation;
         done = data.done;
         renderObservation(currentObs);
@@ -251,9 +274,10 @@
 
         if (done) {
           byId("step-btn").disabled = true;
-          byId("demo-btn").disabled = true;
           log(`Episode complete cumulative=${state.cumulative_reward?.toFixed(3) ?? "0.000"}`);
         } else {
+          // Keep template stable if user hasn't edited; otherwise preserve user payload.
+          if (!byId("action-json").value.trim()) setActionEditorTemplate(currentObs);
           log(`Step reward=${Number(data.reward).toFixed(3)}`);
         }
       } catch (e) {
@@ -261,17 +285,8 @@
       }
     }
 
-    async function runDemo() {
-      for (let i = 0; i < 3; i += 1) {
-        if (done) break;
-        await doStep();
-        await new Promise((resolve) => setTimeout(resolve, 700));
-      }
-    }
-
     byId("reset-btn").addEventListener("click", doReset);
     byId("step-btn").addEventListener("click", doStep);
-    byId("demo-btn").addEventListener("click", runDemo);
     log("Workbench ready.");
   </script>
 </body>
