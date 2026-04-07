@@ -30,12 +30,18 @@ _STOPWORDS = {
     "where", "when", "then", "than", "have", "has", "had", "using", "use", "used",
     "code", "line", "review", "issue", "comment", "because", "while", "might",
 }
+_STRICT_INTERVAL_EPS = 1e-4
 
 
 def _normalize(val: float, max_val: float) -> float:
     if max_val == 0:
         return 1.0
     return max(0.0, min(1.0, val / max_val))
+
+
+def _strict_unit_interval(val: float, eps: float = _STRICT_INTERVAL_EPS) -> float:
+    """Clamp value to open interval (0, 1) for submission validators."""
+    return min(1.0 - eps, max(eps, val))
 
 
 def _tokens(text: str) -> set[str]:
@@ -158,6 +164,7 @@ def grade_action(
         + w[3] * verdict_accuracy
     )
     total *= evidence_penalty
+    total = _strict_unit_interval(total)
 
     explanation = (
         f"Caught {len(matched_issues)}/{len(gt_issues)} issues "

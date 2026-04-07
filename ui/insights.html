@@ -103,6 +103,14 @@
       el.scrollTop = el.scrollHeight;
     }
 
+    function formatStepScore(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "-";
+      if (n >= 0.999) return `${n.toFixed(4)} (near-perfect)`;
+      if (n <= 0.001) return `${n.toFixed(4)} (near-zero)`;
+      return n.toFixed(4);
+    }
+
     function drawSpark() {
       const canvas = byId("reward-spark");
       if (!canvas) return;
@@ -232,7 +240,7 @@
         }
 
         byId("s-done").textContent = String(doneVal);
-        byId("s-rewards").textContent = rewardsVal.length ? rewardsVal.map((v) => Number(v).toFixed(2)).join(", ") : "-";
+        byId("s-rewards").textContent = rewardsVal.length ? rewardsVal.map((v) => formatStepScore(v)).join(", ") : "-";
         byId("s-step").textContent = stepVal !== undefined && stepVal !== null ? String(stepVal) : "-";
         byId("s-refresh").textContent = nowStamp();
         scheduleStatePoll();

@@ -135,6 +135,14 @@
       return normalized * 100;
     }
 
+    function formatStepScore(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "-";
+      if (n >= 0.999) return `${n.toFixed(4)} (near-perfect)`;
+      if (n <= 0.001) return `${n.toFixed(4)} (near-zero)`;
+      return n.toFixed(4);
+    }
+
     function renderObservation(obs) {
       if (!obs) return;
       byId("code-display").textContent = obs.code_snippet || "";
@@ -147,12 +155,12 @@
 
     function renderReward(info, reward) {
       const rb = info?.reward_breakdown || {};
-      animateNumber(byId("total-reward"), Number(reward), 420, 3);
+      byId("total-reward").textContent = formatStepScore(reward);
       byId("reward-bar").style.width = `${normalizeRewardPercent(reward)}%`;
-      byId("r-issues").textContent = rb.issue_detection_score?.toFixed(3) ?? "-";
-      byId("r-fp").textContent = rb.false_positive_penalty?.toFixed(3) ?? "-";
-      byId("r-sev").textContent = rb.severity_accuracy?.toFixed(3) ?? "-";
-      byId("r-verdict").textContent = rb.verdict_accuracy?.toFixed(3) ?? "-";
+      byId("r-issues").textContent = formatStepScore(rb.issue_detection_score);
+      byId("r-fp").textContent = formatStepScore(rb.false_positive_penalty);
+      byId("r-sev").textContent = formatStepScore(rb.severity_accuracy);
+      byId("r-verdict").textContent = formatStepScore(rb.verdict_accuracy);
     }
 
     function renderTimeline() {
