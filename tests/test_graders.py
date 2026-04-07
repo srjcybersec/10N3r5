@@ -78,10 +78,26 @@ def test_empty_review_with_request_changes_not_overrewarded():
     reward = grade_action(action, SAMPLE_GT, "easy")
     assert reward.total < 0.5, f"Expected < 0.5, got {reward.total}"
 
+def test_clean_case_approve_scores_high():
+    clean_gt = {
+        "ground_truth_issues": [],
+        "correct_verdict": "approve",
+        "has_critical_issues": False,
+    }
+    action = CodeReviewAction(
+        comments=[],
+        overall_verdict="approve",
+        summary="No actionable issues found.",
+        confidence=0.9,
+    )
+    reward = grade_action(action, clean_gt, "easy")
+    assert reward.total >= 0.95, f"Expected >= 0.95, got {reward.total}"
+
 if __name__ == "__main__":
     test_perfect_review_scores_high()
     test_empty_review_scores_low()
     test_reward_always_in_range()
     test_paraphrased_correct_comment_gets_credit()
     test_empty_review_with_request_changes_not_overrewarded()
+    test_clean_case_approve_scores_high()
     print("All grader tests passed.")

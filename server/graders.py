@@ -97,7 +97,7 @@ def grade_action(
             if i not in matched_issues and _comment_matches_issue(comment, issue):
                 matched_issues.add(i)
 
-    total_issue_weight = sum(_SEVERITY_WEIGHT[Severity(i["severity"])] for i in gt_issues) or 1.0
+    total_issue_weight = sum(_SEVERITY_WEIGHT[Severity(i["severity"])] for i in gt_issues)
     caught_weight = sum(
         _SEVERITY_WEIGHT[Severity(gt_issues[i]["severity"])]
         for i in matched_issues
