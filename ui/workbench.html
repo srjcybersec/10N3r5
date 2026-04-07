@@ -57,6 +57,7 @@
 
       <article class="card side">
         <h3>Reward</h3>
+        <p style="margin-bottom:8px;color:var(--muted);font-size:12px;">These are per-step scores from the latest <code>/step</code> response, not cumulative episode totals.</p>
         <div class="reward-value" id="total-reward">-</div>
         <div class="progress"><div class="bar" id="reward-bar"></div></div>
         <div class="metric-list">
@@ -68,12 +69,13 @@
       </article>
 
       <article class="card wide">
-        <h3>Submitted Action (Auto Mode) <span id="step-counter" class="tag">step 0 / 3</span></h3>
+        <h3>Submitted Action (Manual JSON) <span id="step-counter" class="tag">step 0 / 3</span></h3>
         <div id="action-display" class="empty">No action taken yet.</div>
       </article>
 
       <article class="card side">
         <h3>Episode State</h3>
+        <p style="margin-bottom:8px;color:var(--muted);font-size:12px;">State values are read from <code>/state</code> after each submitted step.</p>
         <div class="metric-list">
           <div class="row"><span class="key">task</span><span class="val" id="ep-task">-</span></div>
           <div class="row"><span class="key">step</span><span class="val" id="ep-step">-</span></div>

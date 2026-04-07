@@ -46,6 +46,7 @@
 
       <article class="card wide">
         <h3>Realtime Episode Snapshot</h3>
+        <p style="margin-bottom:8px;color:var(--muted);font-size:12px;">All fields below are direct mappings from the backend <code>/state</code> payload.</p>
         <div class="metric-list">
           <div class="row"><span class="key">done</span><span class="val" id="s-done">-</span></div>
           <div class="row"><span class="key">episode rewards</span><span class="val" id="s-rewards">-</span></div>
@@ -73,6 +74,9 @@
       </article>
       <article class="card full">
         <h3>Reward Trend (Live)</h3>
+        <p style="margin-bottom:8px;color:var(--muted);font-size:12px;">
+          A flat line can be normal: if submitted actions are similar in quality across steps, per-step rewards may remain nearly identical.
+        </p>
         <div class="spark-wrap">
           <canvas class="spark" id="reward-spark" width="1000" height="260"></canvas>
         </div>
