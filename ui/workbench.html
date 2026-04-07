@@ -38,6 +38,13 @@
               <option value="security_review">security_review (hard)</option>
             </select>
           </div>
+          <div>
+            <label for="action-mode">Action Mode</label>
+            <select id="action-mode">
+              <option value="manual">Manual</option>
+              <option value="auto_suggest">Auto Suggest</option>
+            </select>
+          </div>
           <button class="btn primary" id="reset-btn">Reset Episode</button>
           <button class="btn" id="step-btn" disabled>Submit Action</button>
         </div>
@@ -45,7 +52,7 @@
 
       <article class="card full">
         <h3>Manual Action Editor (JSON)</h3>
-        <p style="margin-bottom:8px;color:var(--muted);font-size:12px;">Edit this payload and click <strong>Submit Action</strong>. The backend score reflects exactly this action.</p>
+        <p style="margin-bottom:8px;color:var(--muted);font-size:12px;">In <strong>Manual</strong> mode, edit this payload directly. In <strong>Auto Suggest</strong> mode, the UI generates a step-aware payload and still shows exactly what gets sent.</p>
         <textarea id="action-json" style="width:100%;min-height:220px;border-radius:12px;border:1px solid rgba(148,163,184,0.24);background:rgba(7,12,24,0.94);color:#dbeafe;padding:12px;font-family:var(--mono);font-size:12px;line-height:1.5;"></textarea>
       </article>
 
@@ -103,6 +110,7 @@
     let currentObs = null;
     let done = false;
     let timeline = [];
+    let lastSubmittedAction = null;
 
     function log(msg) {
       const el = byId("log");
@@ -189,6 +197,63 @@
       el.value = JSON.stringify(buildTemplateAction(obs), null, 2);
     }
 
+    function buildAutoSuggestedAction(obs) {
+      const taskId = obs?.task_id || "style_review";
+      const step = (obs?.step ?? 0) + 1;
+      if (taskId === "security_review") {
+        return {
+          comments: [
+            {
+              line_number: Math.min(10, 3 + step),
+              category: "security",
+              severity: step >= 2 ? "critical" : "error",
+              message: step === 1
+                ? "User-controlled input appears to reach a sensitive operation."
+                : "Potential injection or unsafe data flow detected; validate and parameterize inputs.",
+              suggestion: "Use parameterized APIs, strict validation, and deny-by-default boundaries."
+            }
+          ],
+          overall_verdict: "request_changes",
+          summary: `Security pass ${step}: highlighted exploitability and hardening guidance.`,
+          confidence: Math.min(0.68 + step * 0.08, 0.95)
+        };
+      }
+      if (taskId === "logic_bug_review") {
+        return {
+          comments: [
+            {
+              line_number: Math.min(10, 1 + step),
+              category: "logic",
+              severity: step >= 2 ? "error" : "warning",
+              message: step === 1
+                ? "Boundary/progression logic looks fragile and may break edge cases."
+                : "Index/loop update can stall or skip valid states; boundary math needs correction.",
+              suggestion: "Adjust boundary updates to guarantee progress and preserve invariant correctness."
+            }
+          ],
+          overall_verdict: "request_changes",
+          summary: `Logic pass ${step}: focused on boundary and progression correctness.`,
+          confidence: Math.min(0.66 + step * 0.08, 0.92)
+        };
+      }
+      return {
+        comments: [
+          {
+            line_number: Math.min(8, step),
+            category: "style",
+            severity: step >= 3 ? "info" : "warning",
+            message: step === 1
+              ? "Naming/style consistency should align with project conventions."
+              : "Formatting/readability can be improved for consistency.",
+            suggestion: "Use consistent naming, spacing, and idiomatic style guide patterns."
+          }
+        ],
+        overall_verdict: step >= 3 ? "comment_only" : "request_changes",
+        summary: `Style pass ${step}: highlighted readability and convention alignment.`,
+        confidence: Math.min(0.65 + step * 0.07, 0.9)
+      };
+    }
+
     function renderAction(action) {
       const comments = action.comments || [];
       const container = byId("action-display");
@@ -238,11 +303,17 @@
       }
       let action;
       try {
-        action = JSON.parse(byId("action-json").value);
+        if (byId("action-mode").value === "auto_suggest") {
+          action = buildAutoSuggestedAction(currentObs);
+          byId("action-json").value = JSON.stringify(action, null, 2);
+        } else {
+          action = JSON.parse(byId("action-json").value);
+        }
       } catch (e) {
         log(`Invalid JSON in action editor: ${e}`);
         return;
       }
+      lastSubmittedAction = action;
       log(`Submitting action verdict=${action.overall_verdict ?? "?"} comments=${(action.comments || []).length}`);
       try {
         const resp = await fetch("/step", {
@@ -259,7 +330,7 @@
         done = data.done;
         renderObservation(currentObs);
         renderReward(data.info, data.reward);
-        renderAction(action);
+        renderAction(lastSubmittedAction);
         timeline.unshift({
           label: `Step ${currentObs?.step ?? "?"}`,
           ts: nowStamp(),
@@ -289,6 +360,15 @@
 
     byId("reset-btn").addEventListener("click", doReset);
     byId("step-btn").addEventListener("click", doStep);
+    byId("action-mode").addEventListener("change", () => {
+      if (currentObs) {
+        if (byId("action-mode").value === "auto_suggest") {
+          byId("action-json").value = JSON.stringify(buildAutoSuggestedAction(currentObs), null, 2);
+        } else {
+          setActionEditorTemplate(currentObs);
+        }
+      }
+    });
     log("Workbench ready.");
   </script>
 </body>
