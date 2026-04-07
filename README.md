@@ -17,6 +17,46 @@ pinned: false
 
 An **OpenEnv-style** reinforcement learning environment where agents learn to perform **automated code review** at three difficulty levels: style and formatting, logic bugs, and security vulnerabilities. The design targets **dense partial-credit rewards**, **multi-step refinement** (feedback between steps), and a simple **HTTP API** suitable for LLM or RL training loops.
 
+## What this project does (plain-English overview)
+
+If you are new to RL or agent systems, think of this project as a **practice arena + scoring engine** for AI code reviewers.
+
+### In one line
+It gives an AI reviewer a code snippet, accepts the AI's review comments and verdict, and then scores how useful/correct that review is.
+
+### What happens step by step
+
+1. You start an episode using a task (`style_review`, `logic_bug_review`, or `security_review`).
+2. The environment sends an observation containing the code snippet and context.
+3. The agent submits an action:
+   - line/file-level comments,
+   - severity for each comment,
+   - overall verdict (`approve`, `request_changes`, `comment_only`),
+   - short summary and confidence.
+4. The grader compares that action against hidden ground-truth issues.
+5. It returns:
+   - reward score (0 to 1),
+   - breakdown (issue detection, false positives, severity, verdict accuracy),
+   - explanation text for feedback.
+6. This repeats for up to 3 steps so the agent can refine its review.
+
+### Why this is useful
+
+- Converts "code review quality" into measurable numbers.
+- Helps compare different prompts/models on the same benchmark tasks.
+- Encourages reviewers to be precise (catch real issues, avoid false positives, choose the right merge verdict).
+
+### What the UI pages are for
+
+- **Home**: high-level project status and task catalog.
+- **Workbench**: run/reset episodes and inspect reward + feedback per step.
+- **Insights**: live monitoring view for state, tasks, and trend signals.
+
+### Important expectation
+
+The project does **not** auto-review arbitrary repos by itself.  
+It is an **evaluation environment** for testing and improving code-review agents using predefined benchmark cases.
+
 ## Why it matters
 
 Code review is a universal bottleneck: it blends pattern matching, reasoning, and risk prioritization. This environment turns that into a **measurable benchmark** with structured observations, actions, and graded feedback—useful for evaluating agents that must read code, cite lines, and choose an appropriate merge verdict.

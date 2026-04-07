@@ -54,8 +54,34 @@ def test_reward_always_in_range():
         reward = grade_action(action, SAMPLE_GT, "easy")
         assert 0.0 <= reward.total <= 1.0
 
+def test_paraphrased_correct_comment_gets_credit():
+    action = CodeReviewAction(
+        comments=[ReviewComment(
+            line_number=1, category=ReviewCategory.STYLE, severity=Severity.WARNING,
+            message="Naming convention is inconsistent; prefer snake_case for this function.",
+        )],
+        overall_verdict="request_changes",
+        summary="Naming style issue found.",
+        confidence=0.85,
+    )
+    reward = grade_action(action, SAMPLE_GT, "easy")
+    assert reward.issue_detection_score > 0.0
+    assert reward.total >= 0.6
+
+def test_empty_review_with_request_changes_not_overrewarded():
+    action = CodeReviewAction(
+        comments=[],
+        overall_verdict="request_changes",
+        summary="Likely issues present.",
+        confidence=0.5,
+    )
+    reward = grade_action(action, SAMPLE_GT, "easy")
+    assert reward.total < 0.5, f"Expected < 0.5, got {reward.total}"
+
 if __name__ == "__main__":
     test_perfect_review_scores_high()
     test_empty_review_scores_low()
     test_reward_always_in_range()
+    test_paraphrased_correct_comment_gets_credit()
+    test_empty_review_with_request_changes_not_overrewarded()
     print("All grader tests passed.")

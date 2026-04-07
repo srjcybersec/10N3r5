@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeReviewOS · Workbench</title>
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Agent Workbench</h1>
+        <p>Run episodes, simulate reviewer actions, and inspect rewards in real-time</p>
+      </div>
+      <div class="status-chip">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Checking connection...</span>
+      </div>
+    </header>
+
+    <nav class="nav">
+      <a href="/ui/index.html" data-nav>Home</a>
+      <a href="/ui/workbench.html" data-nav>Workbench</a>
+      <a href="/ui/insights.html" data-nav>Insights</a>
+      <a href="/docs">API Docs</a>
+    </nav>
+
+    <section class="grid">
+      <article class="card full">
+        <h3>Episode Controls</h3>
+        <div class="controls">
+          <div>
+            <label for="task-select">Task</label>
+            <select id="task-select">
+              <option value="style_review">style_review (easy)</option>
+              <option value="logic_bug_review">logic_bug_review (medium)</option>
+              <option value="security_review">security_review (hard)</option>
+            </select>
+          </div>
+          <button class="btn primary" id="reset-btn">Reset Episode</button>
+          <button class="btn" id="step-btn" disabled>Step (Auto)</button>
+          <button class="btn" id="demo-btn" disabled>Auto Demo x3</button>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <h3>Code Snippet <span id="lang-tag" class="tag">-</span></h3>
+        <pre class="code" id="code-display">Press "Reset Episode" to load a task.</pre>
+        <p style="margin-top:10px;color:var(--muted);font-size:13px;" id="context-display"></p>
+      </article>
+
+      <article class="card side">
+        <h3>Reward</h3>
+        <div class="reward-value" id="total-reward">-</div>
+        <div class="progress"><div class="bar" id="reward-bar"></div></div>
+        <div class="metric-list">
+          <div class="row"><span class="key">issue detection</span><span class="val" id="r-issues">-</span></div>
+          <div class="row"><span class="key">false positive</span><span class="val" id="r-fp">-</span></div>
+          <div class="row"><span class="key">severity accuracy</span><span class="val" id="r-sev">-</span></div>
+          <div class="row"><span class="key">verdict accuracy</span><span class="val" id="r-verdict">-</span></div>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <h3>Last Agent Action <span id="step-counter" class="tag">step 0 / 3</span></h3>
+        <div id="action-display" class="empty">No action taken yet.</div>
+      </article>
+
+      <article class="card side">
+        <h3>Episode State</h3>
+        <div class="metric-list">
+          <div class="row"><span class="key">task</span><span class="val" id="ep-task">-</span></div>
+          <div class="row"><span class="key">step</span><span class="val" id="ep-step">-</span></div>
+          <div class="row"><span class="key">done</span><span class="val" id="ep-done">-</span></div>
+          <div class="row"><span class="key">cumulative</span><span class="val" id="ep-cumulative">-</span></div>
+          <div class="row"><span class="key">rewards</span><span class="val" id="ep-rewards">-</span></div>
+        </div>
+      </article>
+
+      <article class="card full">
+        <h3>Action Stream</h3>
+        <div class="log" id="log">Waiting for actions...</div>
+      </article>
+      <article class="card full">
+        <h3>Episode Timeline</h3>
+        <div class="timeline" id="timeline">
+          <div class="timeline-item">Timeline will appear once an episode starts.</div>
+        </div>
+      </article>
+    </section>
+  </div>
+
+  <script src="/ui/app.js"></script>
+  <script>
+    let currentObs = null;
+    let done = false;
+    let timeline = [];
+
+    function log(msg) {
+      const el = byId("log");
+      el.textContent += `\n[${nowStamp()}] ${msg}`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function clearReward() {
+      byId("total-reward").textContent = "-";
+      byId("reward-bar").style.width = "0%";
+      ["r-issues", "r-fp", "r-sev", "r-verdict"].forEach((id) => byId(id).textContent = "-");
+      byId("ep-done").textContent = "-";
+      byId("ep-cumulative").textContent = "-";
+      byId("ep-rewards").textContent = "-";
+      timeline = [];
+      byId("timeline").innerHTML = '<div class="timeline-item">Timeline cleared.</div>';
+    }
+
+    function normalizeRewardPercent(reward) {
+      if (!Number.isFinite(reward)) return 0;
+      const normalized = Math.max(0, Math.min(1, reward));
+      return normalized * 100;
+    }
+
+    function renderObservation(obs) {
+      if (!obs) return;
+      byId("code-display").textContent = obs.code_snippet || "";
+      byId("context-display").textContent = obs.context ? `Context: ${obs.context}` : "";
+      byId("lang-tag").textContent = obs.language || "-";
+      byId("step-counter").textContent = `step ${obs.step} / ${obs.max_steps}`;
+      byId("ep-task").textContent = obs.task_id || "-";
+      byId("ep-step").textContent = `${obs.step} / ${obs.max_steps}`;
+    }
+
+    function renderReward(info, reward) {
+      const rb = info?.reward_breakdown || {};
+      animateNumber(byId("total-reward"), Number(reward), 420, 3);
+      byId("reward-bar").style.width = `${normalizeRewardPercent(reward)}%`;
+      byId("r-issues").textContent = rb.issue_detection_score?.toFixed(3) ?? "-";
+      byId("r-fp").textContent = rb.false_positive_penalty?.toFixed(3) ?? "-";
+      byId("r-sev").textContent = rb.severity_accuracy?.toFixed(3) ?? "-";
+      byId("r-verdict").textContent = rb.verdict_accuracy?.toFixed(3) ?? "-";
+    }
+
+    function renderTimeline() {
+      const el = byId("timeline");
+      if (!timeline.length) {
+        el.innerHTML = '<div class="timeline-item">No events yet.</div>';
+        return;
+      }
+      el.innerHTML = timeline.map((item) => `
+        <div class="timeline-item">
+          <div style="display:flex;justify-content:space-between;gap:8px;">
+            <strong>${item.label}</strong>
+            <span style="color:var(--muted);font-family:var(--mono);">${item.ts}</span>
+          </div>
+          <div style="margin-top:5px;color:var(--muted);">${item.meta}</div>
+        </div>
+      `).join("");
+    }
+
+    function buildDemoAction() {
+      return {
+        comments: [
+          {
+            line_number: 1,
+            category: "style",
+            severity: "warning",
+            message: "Naming style drift detected; align with the convention used across the module.",
+            suggestion: "Use snake_case for function names and avoid ambiguous abbreviations."
+          }
+        ],
+        overall_verdict: "request_changes",
+        summary: "Code quality is close, but style consistency needs one pass.",
+        confidence: 0.79
+      };
+    }
+
+    function renderAction(action) {
+      const comments = action.comments || [];
+      const container = byId("action-display");
+      if (!comments.length) {
+        container.innerHTML = '<div class="empty">No comments.</div>';
+        return;
+      }
+      container.innerHTML = comments.map((c) => `
+        <div class="comment ${c.severity || "info"}">
+          <div class="meta">line ${c.line_number ?? "file"} · ${c.category || "general"} · ${c.severity || "info"}</div>
+          <div>${c.message || ""}</div>
+          ${c.suggestion ? `<div style="margin-top:7px;color:var(--muted);font-size:12px;">Suggestion: ${c.suggestion}</div>` : ""}
+        </div>
+      `).join("") + `<div class="comment info"><div>${action.summary || "No summary"}</div></div>`;
+    }
+
+    async function doReset() {
+      const taskId = byId("task-select").value;
+      log(`Resetting task=${taskId}`);
+      try {
+        const resp = await fetch("/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task_id: taskId })
+        });
+        const data = await resp.json();
+        currentObs = data.observation;
+        done = data.done;
+        renderObservation(currentObs);
+        clearReward();
+        byId("step-btn").disabled = false;
+        byId("demo-btn").disabled = false;
+        byId("action-display").innerHTML = '<div class="empty">Episode initialized. Press Step (Auto).</div>';
+        timeline.push({ label: "Episode reset", ts: nowStamp(), meta: `Task=${taskId}` });
+        renderTimeline();
+        log(`Reset OK language=${currentObs?.language || "unknown"}`);
+      } catch (e) {
+        log(`Reset failed: ${e}`);
+        setStatus(false);
+      }
+    }
+
+    async function doStep() {
+      if (!currentObs || done) {
+        log("Episode not active. Reset first.");
+        return;
+      }
+      const action = buildDemoAction();
+      log(`Stepping verdict=${action.overall_verdict} comments=${action.comments.length}`);
+      try {
+        const resp = await fetch("/step", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action })
+        });
+        const data = await resp.json();
+        currentObs = data.observation;
+        done = data.done;
+        renderObservation(currentObs);
+        renderReward(data.info, data.reward);
+        renderAction(action);
+        timeline.unshift({
+          label: `Step ${currentObs?.step ?? "?"}`,
+          ts: nowStamp(),
+          meta: `reward=${Number(data.reward).toFixed(3)} · verdict=${action.overall_verdict}`
+        });
+        timeline = timeline.slice(0, 8);
+        renderTimeline();
+
+        const stateResp = await fetch("/state");
+        const state = await stateResp.json();
+        byId("ep-done").textContent = String(state.done);
+        byId("ep-cumulative").textContent = state.cumulative_reward?.toFixed(3) ?? "-";
+        byId("ep-rewards").textContent = (state.episode_rewards || []).map((r) => r.toFixed(2)).join(", ") || "-";
+
+        if (done) {
+          byId("step-btn").disabled = true;
+          byId("demo-btn").disabled = true;
+          log(`Episode complete cumulative=${state.cumulative_reward?.toFixed(3) ?? "0.000"}`);
+        } else {
+          log(`Step reward=${Number(data.reward).toFixed(3)}`);
+        }
+      } catch (e) {
+        log(`Step failed: ${e}`);
+      }
+    }
+
+    async function runDemo() {
+      for (let i = 0; i < 3; i += 1) {
+        if (done) break;
+        await doStep();
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    }
+
+    byId("reset-btn").addEventListener("click", doReset);
+    byId("step-btn").addEventListener("click", doStep);
+    byId("demo-btn").addEventListener("click", runDemo);
+    log("Workbench ready.");
+  </script>
+</body>
+</html>
