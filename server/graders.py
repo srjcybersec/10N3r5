@@ -8,7 +8,8 @@ Scoring philosophy:
   - Severity accuracy: critical missed vs. info missed are penalized differently.
   - Verdict accuracy: approving buggy code is worse than rejecting clean code.
 
-Each grader returns a CodeReviewReward with total in [0.0, 1.0].
+Each grader returns a CodeReviewReward with all scalar scores strictly in (0.0, 1.0)
+for hackathon / OpenEnv validators that reject exact boundaries.
 """
 from __future__ import annotations
 import re
@@ -164,13 +165,20 @@ def grade_action(
         + w[3] * verdict_accuracy
     )
     total *= evidence_penalty
+    fp_penalty = 1.0 - false_positive_score
+
+    # Validators require every reported score field strictly inside (0, 1), not only `total`.
     total = _strict_unit_interval(total)
+    issue_detection_score = _strict_unit_interval(issue_detection_score)
+    fp_penalty = _strict_unit_interval(fp_penalty)
+    severity_accuracy = _strict_unit_interval(severity_accuracy)
+    verdict_accuracy = _strict_unit_interval(verdict_accuracy)
 
     explanation = (
         f"Caught {len(matched_issues)}/{len(gt_issues)} issues "
         f"(detection={issue_detection_score:.2f}). "
         f"False positives: {len(unmatched_comments)} "
-        f"(fp_score={false_positive_score:.2f}). "
+        f"(fp_penalty={fp_penalty:.2f}). "
         f"Severity accuracy={severity_accuracy:.2f}. "
         f"Verdict={'correct' if verdict_correct else 'wrong'} "
         f"(verdict_score={verdict_accuracy:.2f}). "
@@ -181,7 +189,7 @@ def grade_action(
     return CodeReviewReward(
         total=round(total, 4),
         issue_detection_score=round(issue_detection_score, 4),
-        false_positive_penalty=round(1.0 - false_positive_score, 4),
+        false_positive_penalty=round(fp_penalty, 4),
         severity_accuracy=round(severity_accuracy, 4),
         verdict_accuracy=round(verdict_accuracy, 4),
         explanation=explanation,

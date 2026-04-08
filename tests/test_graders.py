@@ -52,7 +52,11 @@ def test_reward_always_in_range():
             confidence=random.random(),
         )
         reward = grade_action(action, SAMPLE_GT, "easy")
-        assert 0.0 <= reward.total <= 1.0
+        assert 0.0 < reward.total < 1.0
+        assert 0.0 < reward.issue_detection_score < 1.0
+        assert 0.0 < reward.false_positive_penalty < 1.0
+        assert 0.0 < reward.severity_accuracy < 1.0
+        assert 0.0 < reward.verdict_accuracy < 1.0
 
 def test_paraphrased_correct_comment_gets_credit():
     action = CodeReviewAction(
@@ -65,7 +69,7 @@ def test_paraphrased_correct_comment_gets_credit():
         confidence=0.85,
     )
     reward = grade_action(action, SAMPLE_GT, "easy")
-    assert reward.issue_detection_score > 0.0
+    assert reward.issue_detection_score > 0.0  # strict (0,1) still excludes 0
     assert reward.total >= 0.6
 
 def test_empty_review_with_request_changes_not_overrewarded():

@@ -30,6 +30,13 @@ TASK_NAME = os.getenv("TASK_NAME", "all")
 BENCHMARK = "code_review_env"
 MAX_STEPS = 3
 SUCCESS_THRESHOLD = 0.6
+# Match env/grader contract: reported scores must be strictly inside (0, 1), never exactly 0.0 or 1.0.
+_STRICT_SCORE_EPS = 1e-4
+
+
+def _open_unit_score(x: float) -> float:
+    v = float(x)
+    return min(1.0 - _STRICT_SCORE_EPS, max(_STRICT_SCORE_EPS, v))
 
 # Set INFERENCE_DEBUG=1 for extra stderr-style diagnostics; keep unset for strict stdout (START/STEP/END only).
 _INFERENCE_DEBUG = os.getenv("INFERENCE_DEBUG", "").lower() in ("1", "true", "yes")
@@ -102,12 +109,14 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     done_val = str(done).lower()
     # Truncate action for log readability
     action_short = action[:80].replace("\n", " ") + ("..." if len(action) > 80 else "")
-    print(f"[STEP] step={step} action={action_short} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
+    r = _open_unit_score(reward)
+    print(f"[STEP] step={step} action={action_short} reward={r:.4f} done={done_val} error={error_val}", flush=True)
 
 
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
+    rewards_str = ",".join(f"{_open_unit_score(r):.4f}" for r in rewards)
+    s = _open_unit_score(score)
+    print(f"[END] success={str(success).lower()} steps={steps} score={s:.4f} rewards={rewards_str}", flush=True)
 
 
 def call_env(endpoint: str, method: str = "POST", payload: dict = None) -> dict:
@@ -187,8 +196,8 @@ def get_agent_action(client: OpenAI, obs: dict, step: int) -> dict:
 def run_task(client: OpenAI, task_id: str) -> float:
     rewards: List[float] = []
     steps_taken = 0
-    success = False
-    score = 0.0
+    completed_without_error = False
+    score = _STRICT_SCORE_EPS
 
     log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
 
@@ -217,15 +226,16 @@ def run_task(client: OpenAI, task_id: str) -> float:
             if done:
                 break
 
-        score = sum(rewards) / len(rewards) if rewards else 0.0
-        score = round(min(max(score, 0.0), 1.0), 3)
-        success = score >= SUCCESS_THRESHOLD
+        completed_without_error = True
 
     except Exception as e:
         if _INFERENCE_DEBUG:
             print(f"[DEBUG] Task error: {e}", flush=True)
 
     finally:
+        raw = (sum(rewards) / len(rewards)) if rewards else _STRICT_SCORE_EPS
+        score = _open_unit_score(raw)
+        success = completed_without_error and score >= SUCCESS_THRESHOLD
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
     return score
@@ -241,14 +251,14 @@ def main():
         score = run_task(client, task_id)
         all_scores[task_id] = score
         if _INFERENCE_DEBUG:
-            print(f"[DEBUG] {task_id} final score: {score:.3f}", flush=True)
+            print(f"[DEBUG] {task_id} final score: {_open_unit_score(score):.4f}", flush=True)
 
     if _INFERENCE_DEBUG:
         print(f"\n[DEBUG] === SUMMARY ===", flush=True)
         for t, s in all_scores.items():
-            print(f"[DEBUG] {t}: {s:.3f}", flush=True)
-        avg = sum(all_scores.values()) / len(all_scores) if all_scores else 0.0
-        print(f"[DEBUG] Average: {avg:.3f}", flush=True)
+            print(f"[DEBUG] {t}: {_open_unit_score(s):.4f}", flush=True)
+        avg_raw = sum(all_scores.values()) / len(all_scores) if all_scores else _STRICT_SCORE_EPS
+        print(f"[DEBUG] Average: {_open_unit_score(avg_raw):.4f}", flush=True)
 
 
 if __name__ == "__main__":
